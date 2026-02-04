@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Podscribe Impression Cost Calculator</title>
+  <meta name="description" content="Calculate cost for Podcast/Simulcast YouTube and Streaming Audio impressions using tiered CPMs." />
+
+  <style>
+    :root{
+      /* Podscribe-ish palette (based on screenshots) */
+      --navy: #0B1F33;
+      --navy-2: #0E2A44;
+      --purple: #5B5CFF;
+      --purple-2: #7B5CFF;
+      --sky: #66D1FF;
+      --ink: #0B1220;
+      --muted: #5B6573;
+      --bg: #F7F5F2;
+      --card: #FFFFFF;
+      --border: rgba(15, 23, 42, 0.10);
+      --shadow: 0 18px 45px rgba(11, 31, 51, 0.12);
+      --shadow-soft: 0 10px 30px rgba(11, 31, 51, 0.10);
+      --radius: 18px;
+      --radius-lg: 26px;
+
+      --success: #12B981;
+      --warn: #F59E0B;
+      --danger: #EF4444;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      color: var(--ink);
+      background: radial-gradient(1200px 500px at 40% -10%, rgba(91,92,255,0.20), rgba(0,0,0,0)),
+                  radial-gradient(1000px 500px at 90% 10%, rgba(102,209,255,0.18), rgba(0,0,0,0)),
+                  var(--bg);
+      min-height: 100vh;
+    }
+
+    .topbar{
+      background: linear-gradient(90deg, var(--navy), var(--navy-2));
+      color: white;
+      padding: 18px 20px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.14);
+    }
+    .topbar-inner{
+      max-width: 1100px;
+      margin: 0 auto;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 16px;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap: 12px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+    .logo{
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--purple), var(--purple-2));
+      box-shadow: 0 12px 25px rgba(91,92,255,0.35);
+      position: relative;
+      overflow: hidden;
+    }
+    .logo::after{
+      content:"";
+      position:absolute;
+      inset: -30%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.35), rgba(255,255,255,0));
+      transform: rotate(15deg);
+    }
+
+    .badge{
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.16);
+      white-space: nowrap;
+    }
+
+    main{
+      max-width: 1100px;
+      margin: 26px auto 60px;
+      padding: 0 18px;
+    }
+
+    .hero{
+      padding: 26px 22px;
+      border-radius: var(--radius-lg);
+      background: linear-gradient(135deg, rgba(91,92,255,0.14), rgba(102,209,255,0.10));
+      border: 1px solid rgba(91,92,255,0.20);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .hero h1{
+      margin: 0 0 6px;
+      font-size: clamp(22px, 3vw, 34px);
+      line-height: 1.15;
+      letter-spacing: -0.5px;
+    }
+    .hero p{
+      margin: 0;
+      color: var(--muted);
+      max-width: 70ch;
+      line-height: 1.55;
+    }
+
+    .grid{
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 16px;
+    }
+    @media (max-width: 980px){
+      .grid{ grid-template-columns: 1fr; }
+    }
+
+    .card{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+      padding: 18px;
+    }
+
+    .card h2{
+      margin: 0 0 12px;
+      font-size: 16px;
+      letter-spacing: -0.2px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+    }
+
+    .pill{
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(91,92,255,0.10);
+      border: 1px solid rgba(91,92,255,0.16);
+      color: #2B2EF0;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .inputs{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 720px){
+      .inputs{ grid-template-columns: 1fr; }
+    }
+
+    label{
+      display:block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .field{
+      background: #FBFBFD;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 12px;
+      transition: border-color 120ms ease, box-shadow 120ms ease;
+    }
+    .field:focus-within{
+      border-color: rgba(91,92,255,0.55);
+      box-shadow: 0 0 0 4px rgba(91,92,255,0.18);
+    }
+    input{
+      width: 100%;
+      border: 0;
+      outline: none;
+      background: transparent;
+      font-size: 16px;
+      color: var(--ink);
+    }
+    input::placeholder{ color: rgba(91, 101, 115, 0.65); }
+
+    .row{
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .btn{
+      appearance: none;
+      border: 0;
+      cursor: pointer;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.2px;
+      color: white;
+      background: linear-gradient(135deg, var(--purple), var(--purple-2));
+      box-shadow: 0 14px 30px rgba(91,92,255,0.30);
+      transition: transform 80ms ease, filter 120ms ease;
+    }
+    .btn:hover{ filter: brightness(1.02); }
+    .btn:active{ transform: translateY(1px); }
+
+    .btn.secondary{
+      background: rgba(11,31,51,0.06);
+      color: var(--ink);
+      box-shadow: none;
+      border: 1px solid var(--border);
+      font-weight: 650;
+    }
+
+    .hint{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+      margin-top: 10px;
+    }
+
+    .totals{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .total{
+      border-radius: 18px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(91,92,255,0.08), rgba(102,209,255,0.06));
+    }
+    .total .kicker{
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .total .value{
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      margin: 0;
+    }
+    .total .sub{
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .warnbox{
+      margin-top: 12px;
+      border-radius: 16px;
+      padding: 12px 12px;
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      background: rgba(245, 158, 11, 0.10);
+      color: #7A4B00;
+      font-size: 13px;
+      line-height: 1.45;
+      display:none;
+    }
+
+    .math{
+      margin-top: 12px;
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+    }
+    .math h3{
+      margin: 0 0 10px;
+      font-size: 14px;
+      color: var(--ink);
+    }
+
+    table{
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: #fff;
+    }
+    th, td{
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      font-size: 13px;
+    }
+    th{
+      text-align: left;
+      color: var(--muted);
+      font-weight: 700;
+      background: #FBFBFD;
+    }
+    tr:last-child td{ border-bottom: 0; }
+
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .right{ text-align:right; }
+
+    .footer{
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .footer a{
+      color: #2B2EF0;
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .footer a:hover{ text-decoration: underline; }
+  </style>
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>Podscribe CPM Calculator</div>
+      </div>
+      <div class="badge">Tiered CPMs • Monthly Impressions</div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Calculate impression costs with tiered CPM pricing</h1>
+      <p>
+        Enter monthly impressions for <strong>Podcast &amp; Simulcast YouTube</strong> and <strong>Streaming Audio</strong>.
+        This calculator applies the progressive tiers from your pricing table, then shows the math.
+      </p>
+    </section>
+
+    <section class="grid">
+      <!-- Left: Inputs + Math -->
+      <div class="card">
+        <h2>
+          Inputs
+          <span class="pill">Auto-calculates</span>
+        </h2>
+
+        <div class="inputs">
+          <div>
+            <label for="podcast">Podcast &amp; Simulcast YouTube impressions</label>
+            <div class="field">
+              <input id="podcast" inputmode="numeric" placeholder="e.g., 2500000" />
+            </div>
+          </div>
+
+          <div>
+            <label for="streaming">Streaming Audio impressions</label>
+            <div class="field">
+              <input id="streaming" inputmode="numeric" placeholder="e.g., 8000000" />
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="btn" id="calc">Calculate</button>
+          <button class="btn secondary" id="reset">Reset</button>
+        </div>
+
+        <div class="hint">
+          Tip: You can paste values with commas (like <span class="mono">10,000,000</span>). Values are capped at
+          <span class="mono">25,000,000</span> per channel for tier math, matching the “Contact us” breakpoint.
+        </div>
+
+        <div id="warn" class="warnbox"></div>
+
+        <div class="math">
+          <h3>Podcast &amp; Simulcast YouTube — Tier math</h3>
+          <div id="podMath"></div>
+        </div>
+
+        <div class="math">
+          <h3>Streaming Audio — Tier math</h3>
+          <div id="strMath"></div>
+        </div>
+      </div>
+
+      <!-- Right: Totals -->
+      <aside class="card">
+        <h2>Totals</h2>
+
+        <div class="totals">
+          <div class="total">
+            <div class="kicker">Podcast &amp; Simulcast YouTube cost</div>
+            <p class="value" id="podTotal">$0</p>
+            <div class="sub" id="podSub">Enter impressions to calculate.</div>
+          </div>
+
+          <div class="total">
+            <div class="kicker">Streaming Audio cost</div>
+            <p class="value" id="strTotal">$0</p>
+            <div class="sub" id="strSub">Enter impressions to calculate.</div>
+          </div>
+
+          <div class="total">
+            <div class="kicker">Combined cost</div>
+            <p class="value" id="allTotal">$0</p>
+            <div class="sub" id="allSub">Sum of both channels.</div>
+          </div>
+        </div>
+
+        <div class="footer">
+          Want this embedded on a pricing page later? This is pure static HTML/CSS/JS, so you can drop it into any site.
+          <br /><br />
+          Publishing help: see the instructions under the code section below.
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    // Tiers from your screenshot (each item: max cumulative impressions, CPM)
+    const PODCAST_TIERS = [
+      { upTo:  2_000_000, cpm: 1.50 },
+      { upTo:  5_000_000, cpm: 1.35 }, // next 3,000,000
+      { upTo: 10_000_000, cpm: 1.20 }, // next 5,000,000
+      { upTo: 25_000_000, cpm: 1.05 }  // next 15,000,000
+    ];
+
+    const STREAMING_TIERS = [
+      { upTo:  2_000_000, cpm: 0.50 },
+      { upTo:  5_000_000, cpm: 0.45 }, // next 3,000,000
+      { upTo: 10_000_000, cpm: 0.40 }, // next 5,000,000
+      { upTo: 25_000_000, cpm: 0.33 }  // next 15,000,000
+    ];
+
+    const MAX_SUPPORTED = 25_000_000;
+
+    const $ = (id) => document.getElementById(id);
+
+    function parseImpressions(raw){
+      if (!raw) return 0;
+      const cleaned = String(raw).replace(/[^\d]/g, "");
+      return cleaned ? Number(cleaned) : 0;
+    }
+
+    function formatInt(n){
+      return n.toLocaleString("en-US");
+    }
+
+    function formatMoney(n){
+      return n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+    }
+
+    function computeTieredCost(impressions, tiers){
+      const capped = Math.min(impressions, MAX_SUPPORTED);
+      let remaining = capped;
+      let prevCap = 0;
+      const rows = [];
+      let total = 0;
+
+      for (const t of tiers){
+        const tierCapacity = t.upTo - prevCap;
+        const inTier = Math.max(0, Math.min(remaining, tierCapacity));
+
+        const cost = (inTier / 1000) * t.cpm;
+        total += cost;
+
+        rows.push({
+          tierRange: `${formatInt(prevCap + 1)}–${formatInt(t.upTo)}`,
+          impressions: inTier,
+          cpm: t.cpm,
+          cost
+        });
+
+        remaining -= inTier;
+        prevCap = t.upTo;
+        if (remaining <= 0) break;
+      }
+
+      const over = impressions > MAX_SUPPORTED ? (impressions - MAX_SUPPORTED) : 0;
+
+      return { capped, total, rows, over };
+    }
+
+    function renderMathTable(containerId, result){
+      const rowsHtml = result.rows.map(r => {
+        const line = `${formatInt(r.impressions)} ÷ 1000 × ${r.cpm.toFixed(2)}`;
+        return `
+          <tr>
+            <td class="mono">${r.tierRange}</td>
+            <td class="right mono">${formatInt(r.impressions)}</td>
+            <td class="right mono">$${r.cpm.toFixed(2)}</td>
+            <td class="mono">${line}</td>
+            <td class="right mono">${formatMoney(r.cost)}</td>
+          </tr>
+        `;
+      }).join("");
+
+      const html = `
+        <table aria-label="Tiered pricing math">
+          <thead>
+            <tr>
+              <th>Tier (cumulative)</th>
+              <th class="right">Impressions used</th>
+              <th class="right">CPM</th>
+              <th>Math</th>
+              <th class="right">Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml || `
+              <tr>
+                <td colspan="5" style="color: var(--muted);">Enter impressions and click Calculate.</td>
+              </tr>
+            `}
+          </tbody>
+        </table>
+      `;
+
+      $(containerId).innerHTML = html;
+    }
+
+    function update(){
+      const podIn = parseImpressions($("podcast").value);
+      const strIn = parseImpressions($("streaming").value);
+
+      const pod = computeTieredCost(podIn, PODCAST_TIERS);
+      const str = computeTieredCost(strIn, STREAMING_TIERS);
+
+      renderMathTable("podMath", pod);
+      renderMathTable("strMath", str);
+
+      $("podTotal").textContent = formatMoney(pod.total);
+      $("strTotal").textContent = formatMoney(str.total);
+      $("allTotal").textContent = formatMoney(pod.total + str.total);
+
+      $("podSub").textContent = podIn ? `${formatInt(pod.capped)} impressions priced (of ${formatInt(podIn)} entered).` : "Enter impressions to calculate.";
+      $("strSub").textContent = strIn ? `${formatInt(str.capped)} impressions priced (of ${formatInt(strIn)} entered).` : "Enter impressions to calculate.";
+      $("allSub").textContent = "Sum of both channels.";
+
+      const warnings = [];
+      if (pod.over > 0) warnings.push(`Podcast/Simulcast: ${formatInt(pod.over)} impressions above 25,000,000 are not priced here (per “Contact us”).`);
+      if (str.over > 0) warnings.push(`Streaming: ${formatInt(str.over)} impressions above 25,000,000 are not priced here (per “Contact us”).`);
+
+      const warnEl = $("warn");
+      if (warnings.length){
+        warnEl.style.display = "block";
+        warnEl.innerHTML = `<strong>Heads up:</strong><br>${warnings.map(w => `• ${w}`).join("<br>")}`;
+      } else {
+        warnEl.style.display = "none";
+        warnEl.innerHTML = "";
+      }
+    }
+
+    $("calc").addEventListener("click", update);
+
+    // Nice UX: calculate on Enter and on blur
+    ["podcast", "streaming"].forEach(id => {
+      $(id).addEventListener("keydown", (e) => {
+        if (e.key === "Enter") update();
+      });
+      $(id).addEventListener("blur", update);
+    });
+
+    $("reset").addEventListener("click", () => {
+      $("podcast").value = "";
+      $("streaming").value = "";
+      $("warn").style.display = "none";
+      $("warn").innerHTML = "";
+      $("podTotal").textContent = "$0";
+      $("strTotal").textContent = "$0";
+      $("allTotal").textContent = "$0";
+      $("podSub").textContent = "Enter impressions to calculate.";
+      $("strSub").textContent = "Enter impressions to calculate.";
+      renderMathTable("podMath", { rows: [] });
+      renderMathTable("strMath", { rows: [] });
+    });
+
+    // Initial render
+    renderMathTable("podMath", { rows: [] });
+    renderMathTable("strMath", { rows: [] });
+  </script>
+</body>
+</html>
